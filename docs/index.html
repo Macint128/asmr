@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>주파수의 숲</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(#283c2e, #121212);
+      color: white;
+      font-family: 'sans-serif';
+      overflow: hidden;
+    }
+
+    #mode-select {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 10;
+    }
+
+    .mode {
+      background: #444;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    .mode:hover {
+      animation: shake 0.3s infinite;
+    }
+
+    @keyframes shake {
+      0% { transform: rotate(0deg); }
+      25% { transform: rotate(1deg); }
+      50% { transform: rotate(-1deg); }
+      75% { transform: rotate(1deg); }
+      100% { transform: rotate(0deg); }
+    }
+
+    canvas {
+      display: block;
+    }
+
+    .cooling {
+      background: linear-gradient(#225577, #111);
+    }
+  </style>
+</head>
+<body>
+  <div id="mode-select">
+    <button class="mode" data-mode="wind">바람</button>
+    <button class="mode" data-mode="water">물소리</button>
+    <button class="mode" data-mode="boat">배타기</button>
+    <button class="mode" data-mode="match">성냥</button>
+    <button class="mode" data-mode="aircon">에어컨</button>
+    <button class="mode" data-mode="candle">생일 초</button>
+  </div>
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    let offset = 0;
+    let mode = "";
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    const whiteNoiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+    const data = whiteNoiseBuffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+
+    const whiteNoise = audioCtx.createBufferSource();
+    whiteNoise.buffer = whiteNoiseBuffer;
+    whiteNoise.loop = true;
+    const whiteGain = audioCtx.createGain();
+    whiteGain.gain.value = 0.2;
+    whiteNoise.connect(whiteGain).connect(audioCtx.destination);
+    whiteNoise.start();
+
+    const boat = { x: 400, y: 500 };
+
+    function drawRiver(offset) {
+      ctx.fillStyle = "#005577";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#003344";
+      for (let i = 0; i < 10; i++) {
+        ctx.fillRect((i * 80 + offset) % canvas.width, 580, 60, 20);
+      }
+    }
+
+    function drawBoat() {
+      ctx.fillStyle = "#aaaaaa";
+      ctx.beginPath();
+      ctx.ellipse(boat.x, boat.y, 40, 20, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function render() {
+      offset += 2;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (mode === "boat") {
+        drawRiver(offset);
+        drawBoat();
+      }
+      requestAnimationFrame(render);
+    }
+    render();
+
+    document.querySelectorAll(".mode").forEach(btn => {
+      btn.addEventListener("click", () => {
+        mode = btn.dataset.mode;
+        if (mode === "wind") playWind();
+        else if (mode === "water") playWater();
+        else if (mode === "match") playMatchStrike();
+        else if (mode === "aircon") startAircon();
+        else if (mode === "candle") startCandle();
+      });
+    });
+
+    function playWind() {
+      const gain = audioCtx.createGain();
+      whiteNoise.connect(gain).connect(audioCtx.destination);
+      function modulate() {
+        gain.gain.setValueAtTime(0.1 + Math.random() * 0.1, audioCtx.currentTime);
+        setTimeout(modulate, 200);
+      }
+      modulate();
+    }
+
+    function playWater() {
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = 1000;
+      whiteNoise.connect(filter).connect(audioCtx.destination);
+    }
+
+    function playMatchStrike() {
+      const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.3, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        data[i] = Math.random() * (1 - i / data.length);
+      }
+      const source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioCtx.destination);
+      source.start();
+    }
+
+    function startAircon() {
+      const osc = audioCtx.createOscillator();
+      osc.frequency.value = 60;
+      const gain = audioCtx.createGain();
+      gain.gain.value = 0.05;
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start();
+      document.body.classList.add("cooling");
+    }
+
+    function startCandle() {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+        const mic = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        mic.connect(analyser);
+        setInterval(() => {
+          const data = new Uint8Array(analyser.frequencyBinCount);
+          analyser.getByteFrequencyData(data);
+          const volume = data.reduce((a, b) => a + b, 0);
+          if (volume > 5000) {
+            alert("후~ 생일초 꺼졌어! 🎂");
+          }
+        }, 300);
+      });
+    }
+
+    // 모바일 배 조종
+    window.addEventListener("deviceorientation", (e) => {
+      if (mode === "boat") {
+        boat.x += e.gamma * 0.5;
+      }
+    });
+
+    canvas.addEventListener("touchmove", (e) => {
+      if (mode === "boat") {
+        const touch = e.touches[0];
+        boat.x = touch.clientX;
+      }
+    });
+  </script>
+</body>
+</html>

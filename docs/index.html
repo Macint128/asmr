@@ -2,197 +2,144 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>주파수의 숲</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASMR 뱃놀이</title>
   <style>
     html, body {
       margin: 0;
       padding: 0;
-      background: linear-gradient(#283c2e, #121212);
-      color: white;
-      font-family: 'sans-serif';
+      background: #0e1a25;
       overflow: hidden;
-    }
-
-    #mode-select {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 20px;
-      z-index: 10;
-      padding: 10px 20px;
-      background: rgba(0,0,0,0.2);
-      border-radius: 20px;
-      backdrop-filter: blur(10px);
-    }
-
-    .mode {
-      width: 50px;
-      height: 50px;
-      background: white;
-      border: none;
-      border-radius: 15px;
-      cursor: pointer;
-      background-size: cover;
-      background-position: center;
-      transition: transform 0.2s ease;
-    }
-
-    .mode:hover {
-      transform: scale(1.3);
+      font-family: 'Arial', sans-serif;
+      color: white;
     }
 
     canvas {
       display: block;
     }
 
-    .cooling {
-      background: linear-gradient(#225577, #111);
+    #menu {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 20px;
+      z-index: 10;
+    }
+
+    .menu-item {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 10px 20px;
+      border-radius: 12px;
+      transition: transform 0.2s;
+      cursor: pointer;
+    }
+
+    .menu-item:hover {
+      transform: scale(1.2) rotate(2deg);
+      background: rgba(255, 255, 255, 0.3);
     }
   </style>
 </head>
 <body>
-  <div id="mode-select">
-    <button class="mode" data-mode="wind" style="background-image: url('https://cdn-icons-png.flaticon.com/128/4144/4144487.png');" title="바람"></button>
-    <button class="mode" data-mode="water" style="background-image: url('https://cdn-icons-png.flaticon.com/128/728/728093.png');" title="물소리"></button>
-    <button class="mode" data-mode="boat" style="background-image: url('https://cdn-icons-png.flaticon.com/128/2323/2323644.png');" title="배타기"></button>
-    <button class="mode" data-mode="match" style="background-image: url('https://cdn-icons-png.flaticon.com/128/9573/9573435.png');" title="성냥"></button>
-    <button class="mode" data-mode="aircon" style="background-image: url('https://cdn-icons-png.flaticon.com/128/869/869869.png');" title="에어컨"></button>
-    <button class="mode" data-mode="candle" style="background-image: url('https://cdn-icons-png.flaticon.com/128/3363/3363990.png');" title="생일 초"></button>
+  <div id="menu">
+    <div class="menu-item" onclick="playSound('match')">성냥 켜기</div>
+    <div class="menu-item" onclick="playSound('aircon')">에어컨 켜기</div>
+    <div class="menu-item" onclick="playSound('candle')">생일 초 불기</div>
   </div>
+  <canvas id="gameCanvas"></canvas>
 
-  <canvas id="gameCanvas" width="800" height="600"></canvas>
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
-    let offset = 0;
-    let mode = "";
 
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let width, height;
+    let keys = {};
+    let boat = {
+      x: 0, y: 0, angle: 0, speed: 0
+    };
 
-    const whiteNoiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
-    const data = whiteNoiseBuffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) {
-      data[i] = Math.random() * 2 - 1;
+    const waves = [];
+
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
     }
 
-    const whiteNoise = audioCtx.createBufferSource();
-    whiteNoise.buffer = whiteNoiseBuffer;
-    whiteNoise.loop = true;
-    const whiteGain = audioCtx.createGain();
-    whiteGain.gain.value = 0.2;
-    whiteNoise.connect(whiteGain).connect(audioCtx.destination);
-    whiteNoise.start();
+    window.addEventListener('resize', resize);
+    resize();
 
-    const boat = { x: 400, y: 500 };
+    window.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+    window.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
-    function drawRiver(offset) {
-      ctx.fillStyle = "#005577";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "#003344";
-      for (let i = 0; i < 10; i++) {
-        ctx.fillRect((i * 80 + offset) % canvas.width, 580, 60, 20);
+    function update() {
+      // 조종
+      if (keys["w"]) boat.speed += 0.1;
+      if (keys["s"]) boat.speed -= 0.1;
+      if (keys["a"]) boat.angle -= 0.05;
+      if (keys["d"]) boat.angle += 0.05;
+
+      boat.speed *= 0.98;
+
+      boat.x += Math.cos(boat.angle) * boat.speed;
+      boat.y += Math.sin(boat.angle) * boat.speed;
+
+      // 웨이브 추가
+      waves.push({x: boat.x, y: boat.y, age: 0});
+      if (waves.length > 200) waves.shift();
+    }
+
+    function draw() {
+      ctx.fillStyle = "#0e1a25";
+      ctx.fillRect(0, 0, width, height);
+
+      // 웨이브 그리기 (1인칭이지만 뒤에 흔적 표현)
+      for (let wave of waves) {
+        let dx = wave.x - boat.x;
+        let dy = wave.y - boat.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        let size = 5 + wave.age * 2;
+        let alpha = 1 - wave.age / 100;
+        let angleToScreen = Math.atan2(dy, dx) - boat.angle;
+
+        let screenX = width / 2 + Math.cos(angleToScreen) * dist;
+        let screenY = height / 2 + Math.sin(angleToScreen) * dist;
+
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.2})`;
+        ctx.arc(screenX, screenY, size, 0, Math.PI * 2);
+        ctx.fill();
+
+        wave.age++;
       }
+
+      // 화면 중앙에 "앞" 보여주기
+      ctx.save();
+      ctx.translate(width / 2, height / 2);
+      ctx.rotate(boat.angle);
+      ctx.fillStyle = "rgba(255,255,255,0.1)";
+      ctx.fillRect(-10, -height, 20, height / 2);
+      ctx.restore();
     }
 
-    function drawBoat() {
-      ctx.fillStyle = "#aaaaaa";
-      ctx.beginPath();
-      ctx.ellipse(boat.x, boat.y, 40, 20, 0, 0, Math.PI * 2);
-      ctx.fill();
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
     }
+    loop();
 
-    function render() {
-      offset += 2;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (mode === "boat") {
-        drawRiver(offset);
-        drawBoat();
-      }
-      requestAnimationFrame(render);
+    const sounds = {
+      match: new Audio("https://cdn.pixabay.com/download/audio/2022/02/15/audio_66085f560b.mp3?filename=match-lighting-7163.mp3"),
+      aircon: new Audio("https://cdn.pixabay.com/download/audio/2022/02/18/audio_a4c3d39c3b.mp3?filename=air-conditioning-unit-7833.mp3"),
+      candle: new Audio("https://cdn.pixabay.com/download/audio/2021/10/21/audio_b8f3dbafde.mp3?filename=candle-blow-out-6172.mp3")
+    };
+
+    function playSound(name) {
+      sounds[name].currentTime = 0;
+      sounds[name].play();
     }
-    render();
-
-    document.querySelectorAll(".mode").forEach(btn => {
-      btn.addEventListener("click", () => {
-        mode = btn.dataset.mode;
-        if (mode === "wind") playWind();
-        else if (mode === "water") playWater();
-        else if (mode === "match") playMatchStrike();
-        else if (mode === "aircon") startAircon();
-        else if (mode === "candle") startCandle();
-      });
-    });
-
-    function playWind() {
-      const gain = audioCtx.createGain();
-      whiteNoise.connect(gain).connect(audioCtx.destination);
-      function modulate() {
-        gain.gain.setValueAtTime(0.1 + Math.random() * 0.1, audioCtx.currentTime);
-        setTimeout(modulate, 200);
-      }
-      modulate();
-    }
-
-    function playWater() {
-      const filter = audioCtx.createBiquadFilter();
-      filter.type = "lowpass";
-      filter.frequency.value = 1000;
-      whiteNoise.connect(filter).connect(audioCtx.destination);
-    }
-
-    function playMatchStrike() {
-      const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.3, audioCtx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < data.length; i++) {
-        data[i] = Math.random() * (1 - i / data.length);
-      }
-      const source = audioCtx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(audioCtx.destination);
-      source.start();
-    }
-
-    function startAircon() {
-      const osc = audioCtx.createOscillator();
-      osc.frequency.value = 60;
-      const gain = audioCtx.createGain();
-      gain.gain.value = 0.05;
-      osc.connect(gain).connect(audioCtx.destination);
-      osc.start();
-      document.body.classList.add("cooling");
-    }
-
-    function startCandle() {
-      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-        const mic = audioCtx.createMediaStreamSource(stream);
-        const analyser = audioCtx.createAnalyser();
-        mic.connect(analyser);
-        setInterval(() => {
-          const data = new Uint8Array(analyser.frequencyBinCount);
-          analyser.getByteFrequencyData(data);
-          const volume = data.reduce((a, b) => a + b, 0);
-          if (volume > 5000) {
-            alert("후~ 생일초 꺼졌어! 🎂");
-          }
-        }, 300);
-      });
-    }
-
-    window.addEventListener("deviceorientation", (e) => {
-      if (mode === "boat") {
-        boat.x += e.gamma * 0.5;
-      }
-    });
-
-    canvas.addEventListener("touchmove", (e) => {
-      if (mode === "boat") {
-        const touch = e.touches[0];
-        boat.x = touch.clientX;
-      }
-    });
   </script>
 </body>
 </html>

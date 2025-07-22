@@ -16,34 +16,32 @@
 
     #mode-select {
       position: fixed;
-      top: 10px;
-      left: 10px;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
       display: flex;
-      flex-direction: column;
-      gap: 10px;
+      gap: 20px;
       z-index: 10;
+      padding: 10px 20px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 20px;
+      backdrop-filter: blur(10px);
     }
 
     .mode {
-      background: #444;
-      color: white;
+      width: 50px;
+      height: 50px;
+      background: white;
       border: none;
-      padding: 10px 20px;
-      border-radius: 10px;
-      font-size: 1rem;
+      border-radius: 15px;
       cursor: pointer;
+      background-size: cover;
+      background-position: center;
+      transition: transform 0.2s ease;
     }
 
     .mode:hover {
-      animation: shake 0.3s infinite;
-    }
-
-    @keyframes shake {
-      0% { transform: rotate(0deg); }
-      25% { transform: rotate(1deg); }
-      50% { transform: rotate(-1deg); }
-      75% { transform: rotate(1deg); }
-      100% { transform: rotate(0deg); }
+      transform: scale(1.3);
     }
 
     canvas {
@@ -57,13 +55,14 @@
 </head>
 <body>
   <div id="mode-select">
-    <button class="mode" data-mode="wind">바람</button>
-    <button class="mode" data-mode="water">물소리</button>
-    <button class="mode" data-mode="boat">배타기</button>
-    <button class="mode" data-mode="match">성냥</button>
-    <button class="mode" data-mode="aircon">에어컨</button>
-    <button class="mode" data-mode="candle">생일 초</button>
+    <button class="mode" data-mode="wind" style="background-image: url('https://cdn-icons-png.flaticon.com/128/4144/4144487.png');" title="바람"></button>
+    <button class="mode" data-mode="water" style="background-image: url('https://cdn-icons-png.flaticon.com/128/728/728093.png');" title="물소리"></button>
+    <button class="mode" data-mode="boat" style="background-image: url('https://cdn-icons-png.flaticon.com/128/2323/2323644.png');" title="배타기"></button>
+    <button class="mode" data-mode="match" style="background-image: url('https://cdn-icons-png.flaticon.com/128/9573/9573435.png');" title="성냥"></button>
+    <button class="mode" data-mode="aircon" style="background-image: url('https://cdn-icons-png.flaticon.com/128/869/869869.png');" title="에어컨"></button>
+    <button class="mode" data-mode="candle" style="background-image: url('https://cdn-icons-png.flaticon.com/128/3363/3363990.png');" title="생일 초"></button>
   </div>
+
   <canvas id="gameCanvas" width="800" height="600"></canvas>
   <script>
     const canvas = document.getElementById("gameCanvas");
@@ -182,7 +181,6 @@
       });
     }
 
-    // 모바일 배 조종
     window.addEventListener("deviceorientation", (e) => {
       if (mode === "boat") {
         boat.x += e.gamma * 0.5;
